@@ -17,7 +17,6 @@ data "aws_ssm_parameter" "pod_subnets" {
   name  = var.ssm_pod_subnets[count.index]
 }
 
-
 data "aws_eks_cluster_auth" "default" {
   name = aws_eks_cluster.main.id
 }
