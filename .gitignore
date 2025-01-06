@@ -4,6 +4,7 @@
 # .tfstate files
 
 .terraform*
+**/*.zip
 
 # Crash log files
 crash.log
