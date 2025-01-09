@@ -1,0 +1,58 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: linuxtips
+spec:
+  instanceProfile: "linuxtips-cluster"
+  amiFamily: "AL2023"
+  amiSelectorTerms:
+  - id: ami-086d1d1587a61ea1f
+  securityGroupSelectorTerms:
+  - id: sg-07e71a1e47eef2ad3
+  subnetSelectorTerms:
+  - id: subnet-0ea6a044ceef613f2
+  - id: subnet-0573274b083edba26
+  - id: subnet-09856856307682303
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: linuxtips
+spec:
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m
+  template:
+    metadata:
+      labels:
+        workload: "etc"  
+    spec:
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:   
+          - t3
+          - t3a
+
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+          - large
+          - medium
+
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+          - "spot"
+    
+        - key: "topology.kubernetes.io/zone" 
+          operator: In
+          values:
+          - "us-east-1a"
+          - "us-east-1b"
+          - "us-east-1c"          
+          
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: linuxtips
