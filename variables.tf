@@ -77,3 +77,13 @@ variable "karpenter_capacity" {
     availability_zones = list(string)
   }))
 }
+
+variable "dns_name" {
+  type    = string
+  default = "*.msfidelis.com.br"
+}
+
+variable "route53_hosted_zone" {
+  type    = string
+  default = "Z102505525LUE9SZ7HWTY"
+}

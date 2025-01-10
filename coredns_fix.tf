@@ -49,8 +49,8 @@ data "archive_file" "coredns_archive" {
 
 
 resource "aws_lambda_function" "coredns_fix" {
-  function_name    = format("%s-coredns-fix", var.project_name)
-  runtime          = "python3.13"
+  function_name = format("%s-coredns-fix", var.project_name)
+  runtime       = "python3.13"
 
   handler          = "main.handler"
   role             = aws_iam_role.coredns_fix.arn
@@ -59,7 +59,7 @@ resource "aws_lambda_function" "coredns_fix" {
   timeout          = 120
 
   vpc_config {
-    subnet_ids = data.aws_ssm_parameter.private_subnets[*].value
+    subnet_ids         = data.aws_ssm_parameter.private_subnets[*].value
     security_group_ids = [aws_security_group.coredns_fix.id]
   }
 }
