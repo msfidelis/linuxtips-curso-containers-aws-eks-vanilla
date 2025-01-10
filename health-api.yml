@@ -1,0 +1,486 @@
+###################################
+###         Health-API          ###
+##################################
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: health-api
+--- 
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: health-api
+  namespace: health-api
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: health.msfidelis.com.br
+      http:
+        paths:
+          - pathType: Prefix
+            backend:
+              service:
+                name: health-api
+                port:
+                  number: 8080
+            path: /
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: health-api
+  name: health-api
+  namespace: health-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: health-api
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+      labels:
+        app: health-api
+        name: health-api
+        version: v1
+    spec:
+      containers:
+      - image: fidelissauro/health-api:latest
+        name: health-api
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: ZIPKIN_COLLECTOR_ENDPOINT
+          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+        - name: BMR_SERVICE_ENDPOINT
+          value: "bmr-grpc.bmr.svc.cluster.local:30000"
+        - name: IMC_SERVICE_ENDPOINT
+          value: "imc-grpc.imc.svc.cluster.local:30000"
+        - name: RECOMMENDATIONS_SERVICE_ENDPOINT
+          value: "recommendations-grpc.recommendations.svc.cluster.local:30000"
+        - name: NATS_URI
+          value: "nats://nats.nats.svc.cluster.local:4222"                              
+        ports:
+        - containerPort: 8080
+          name: http   
+        startupProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /healthcheck
+            port: 8080
+          periodSeconds: 10
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /healthcheck
+            port: 8080          
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: health-api
+  namespace: health-api
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"    
+  labels:
+    app.kubernetes.io/name: health-api
+    app.kubernetes.io/instance: health-api 
+spec:
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+  selector:
+    app: health-api
+  type: ClusterIP
+---
+###################################
+###   Recommendations Service   ###
+###################################
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recommendations
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: recommendations-grpc
+  name: recommendations-grpc
+  namespace: recommendations
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: recommendations-grpc
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "30000"
+        policy.cilium.io/proxy-visibility: "<Egress/53/UDP/DNS>,<Egress/30000/TCP/HTTP>"
+      labels:
+        app: recommendations-grpc
+        name: recommendations-grpc
+        version: v1
+    spec:
+      containers:
+      - image: fidelissauro/recommendations-grpc-service:latest
+        name: recommendations-grpc
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: ZIPKIN_COLLECTOR_ENDPOINT
+          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+        - name: PROTEINS_SERVICE_ENDPOINT
+          value: "proteins-grpc.proteins.svc.cluster.local:30000"  
+        - name: WATER_SERVICE_ENDPOINT
+          value: "water-grpc.water.svc.cluster.local:30000"  
+        - name: CALORIES_SERVICE_ENDPOINT
+          value: "calories-grpc.calories.svc.cluster.local:30000"  
+        ports:
+        - containerPort: 30000
+          name: http   
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendations-grpc
+  namespace: recommendations
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "30000"    
+  labels:
+    app.kubernetes.io/name: recommendations-grpc
+    app.kubernetes.io/instance: health-api 
+spec:
+  ports:
+  - name: web
+    port: 30000
+    protocol: TCP
+  selector:
+    app: recommendations-grpc
+  type: ClusterIP
+#######################
+###   BMR Service   ###
+#######################
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bmr
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: bmr-grpc
+  name: bmr-grpc
+  namespace: bmr
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bmr-grpc
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "30000"
+      labels:
+        app: bmr-grpc
+        name: bmr-grpc
+        version: v1
+    spec:
+      containers:
+      - image: fidelissauro/bmr-grpc-service:latest
+        name: bmr-grpc
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: ZIPKIN_COLLECTOR_ENDPOINT
+          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+        ports:
+        - containerPort: 30000
+          name: http   
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bmr-grpc
+  namespace: bmr
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "30000"    
+  labels:
+    app.kubernetes.io/name: bmr-grpc
+    app.kubernetes.io/instance: health-api 
+spec:
+  ports:
+  - name: web
+    port: 30000
+    protocol: TCP
+  selector:
+    app: bmr-grpc
+  type: ClusterIP
+---
+#######################
+###   IMC Service   ###
+#######################
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: imc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: imc-grpc
+  name: imc-grpc
+  namespace: imc
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: imc-grpc
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "bmr-grpc.bmr.svc.cluster.local:30000"
+      labels:
+        app: imc-grpc
+        name: imc-grpc
+        version: v1
+    spec:
+      containers:
+      - image: fidelissauro/imc-grpc-service:latest
+        name: imc-grpc
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: ZIPKIN_COLLECTOR_ENDPOINT
+          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+        ports:
+        - containerPort: 30000
+          name: http   
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: imc-grpc
+  namespace: imc
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "30000"    
+  labels:
+    app.kubernetes.io/name: imc-grpc
+    app.kubernetes.io/instance: health-api 
+spec:
+  ports:
+  - name: web
+    port: 30000
+    protocol: TCP
+  selector:
+    app: imc-grpc
+  type: ClusterIP
+---
+############################
+###   Calories Service   ###
+############################
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calories
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: calories-grpc
+  name: calories-grpc
+  namespace: calories
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: calories-grpc
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "30000"
+      labels:
+        app: calories-grpc
+        name: calories-grpc
+        version: v1
+    spec:
+      containers:
+      - image: fidelissauro/calories-grpc-service:latest
+        name: calories-grpc
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: ZIPKIN_COLLECTOR_ENDPOINT
+          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans
+        ports:
+        - containerPort: 30000
+          name: http   
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: calories-grpc
+  namespace: calories
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "30000"    
+  labels:
+    app.kubernetes.io/name: calories-grpc
+    app.kubernetes.io/instance: health-api 
+spec:
+  ports:
+  - name: web
+    port: 30000
+    protocol: TCP
+  selector:
+    app: calories-grpc
+  type: ClusterIP
+--- 
+############################
+###   Proteins Service   ###
+############################
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: proteins
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: proteins-grpc
+  name: proteins-grpc
+  namespace: proteins
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: proteins-grpc
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "30000"
+      labels:
+        app: proteins-grpc
+        name: proteins-grpc
+        version: v1
+    spec:
+      containers:
+      - image: fidelissauro/proteins-grpc-service:latest
+        name: proteins-grpc
+        env:
+        - name: ENVIRONMENT
+          value: "dev" 
+        - name: ZIPKIN_COLLECTOR_ENDPOINT
+          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+        ports:
+        - containerPort: 30000
+          name: http   
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proteins-grpc
+  namespace: proteins
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "30000"    
+  labels:
+    app.kubernetes.io/name: proteins-grpc
+    app.kubernetes.io/instance: health-api 
+spec:
+  ports:
+  - name: web
+    port: 30000
+    protocol: TCP
+  selector:
+    app: proteins-grpc
+  type: ClusterIP
+---
+#########################
+###   Water Service   ###
+#########################
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: water
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: water-grpc
+  name: water-grpc
+  namespace: water
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: water-grpc
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "30000" 
+      labels:
+        app: water-grpc
+        name: water-grpc
+        version: v1
+    spec:
+      containers:
+      - image: fidelissauro/water-grpc-service:latest
+        name: water-grpc
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: ZIPKIN_COLLECTOR_ENDPOINT
+          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+        ports:
+        - containerPort: 30000
+          name: http   
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: water-grpc
+  namespace: water
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "30000"    
+  labels:
+    app.kubernetes.io/name: water-grpc
+    app.kubernetes.io/instance: health-api 
+spec:
+  ports:
+  - name: web
+    port: 30000
+    protocol: TCP
+  selector:
+    app: water-grpc
+  type: ClusterIP

@@ -8,6 +8,10 @@ resource "kubectl_manifest" "ec2_node_class" {
     SECURITY_GROUP_ID = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
     SUBNETS           = data.aws_ssm_parameter.pod_subnets[*].value
   })
+
+  depends_on = [
+    helm_release.karpenter
+  ]
 }
 
 
@@ -21,4 +25,8 @@ resource "kubectl_manifest" "nodepool" {
     CAPACITY_TYPE      = var.karpenter_capacity[count.index].capacity_type
     AVAILABILITY_ZONES = var.karpenter_capacity[count.index].availability_zones
   })
+
+  depends_on = [
+    helm_release.karpenter
+  ]
 }
