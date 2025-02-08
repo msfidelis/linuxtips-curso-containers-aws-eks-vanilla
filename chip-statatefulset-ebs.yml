@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chip
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: chip
+  namespace: chip
+spec:
+  serviceName: "chip"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chip
+  template:
+    metadata:
+      labels:
+        app: chip
+        name: chip
+        version: v1
+    spec:
+      containers:
+      - name: chip
+        image: fidelissauro/chip:v1
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        startupProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /readiness
+            port: 8080
+          periodSeconds: 10
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            httpHeaders:
+            - name: Custom-Header
+              value: Awesome
+            path: /liveness
+            port: 8080
+          periodSeconds: 10
+        env:
+        - name: CHAOS_MONKEY_ENABLED
+          value: "false"
+        # Configuração do EBS
+        volumeMounts:
+        - name: chip-storage
+          mountPath: /data 
+      terminationGracePeriodSeconds: 60
+  volumeClaimTemplates:
+  - metadata:
+      name: chip-storage
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 4Gi
+      storageClassName: gp3 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chip
+  namespace: chip 
+  labels:
+    app.kubernetes.io/name: chip
+    app.kubernetes.io/instance: chip 
+spec:
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+  selector:
+    app: chip
+  type: ClusterIP

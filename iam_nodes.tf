@@ -50,6 +50,16 @@ resource "aws_iam_role_policy_attachment" "cloudwatch" {
   role       = aws_iam_role.eks_nodes_role.name
 }
 
+resource "aws_iam_role_policy_attachment" "ebs_csi" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.eks_nodes_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "s3_csi" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+  role       = aws_iam_role.eks_nodes_role.name
+}
+
 resource "aws_iam_instance_profile" "nodes" {
   name = var.project_name
   role = aws_iam_role.eks_nodes_role.name
