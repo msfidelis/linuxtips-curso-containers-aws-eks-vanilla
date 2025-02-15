@@ -11,6 +11,21 @@ resource "helm_release" "kube_state_metrics" {
   }
 
   set {
+    name  = "nodeSelector.karpenter\\.sh/nodepool"
+    value = "system"
+  }
+
+  set {
+    name  = "tolerations[0].key"
+    value = "CriticalAddonsOnly"
+  }
+
+  set {
+    name  = "tolerations[0].operator"
+    value = "Exists"
+  }  
+
+  set {
     name  = "metricLabelsAllowlist[0]"
     value = "nodes=[*]"
   }
@@ -21,7 +36,6 @@ resource "helm_release" "kube_state_metrics" {
   }
 
   depends_on = [
-    aws_eks_cluster.main,
-    aws_eks_node_group.main
+    aws_eks_cluster.main
   ]
 }
