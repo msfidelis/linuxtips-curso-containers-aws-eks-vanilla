@@ -65,6 +65,25 @@ variable "addon_kubeproxy_version" {
   description = "Versão do Addon do Kube-Proxy"
 }
 
+variable "addon_pod_identity_version" {
+  type        = string
+  default     = "v1.3.4-eksbuild.1"
+  description = "Versão do Addon do Pod Identity"
+}
+
+variable "addon_efs_csi_version" {
+  type        = string
+  default     = "v2.1.4-eksbuild.1"
+  description = "Versão do Addon do EFS CSI"
+
+}
+
+variable "grafana_host" {
+  type        = string
+  default     = "grafana.msfidelis.com.br"
+  description = "Host do Grafana"
+}
+
 variable "karpenter_capacity" {
   type = list(object({
     name               = string
@@ -91,31 +110,31 @@ variable "route53_hosted_zone" {
 # Nginx
 
 variable "nginx_min_replicas" {
-  type        = string
-  default     = "3"
+  type    = string
+  default = "3"
 }
 
 variable "nginx_max_replicas" {
-  type        = string
-  default     = "60"
+  type    = string
+  default = "60"
 }
 
 variable "nginx_requests_cpu" {
-  type        = string
-  default     = "250m"
+  type    = string
+  default = "250m"
 }
 
 variable "nginx_requests_memory" {
-  type        = string
-  default     = "512Mi"
+  type    = string
+  default = "512Mi"
 }
 
 variable "nginx_limits_cpu" {
-  type        = string
-  default     = "500m"
+  type    = string
+  default = "500m"
 }
 
 variable "nginx_limits_memory" {
-  type        = string
-  default     = "1024Mi"
+  type    = string
+  default = "1024Mi"
 }

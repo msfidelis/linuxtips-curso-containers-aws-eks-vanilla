@@ -1,0 +1,73 @@
+prometheus:
+  enabled: true
+  prometheusSpec:
+
+    retention: 15d
+
+    nodeSelector:
+      karpenter.sh/nodepool: "prometheus"
+
+    # Storage
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "efs-prometheus"
+          accessModes:
+            - ReadWriteMany
+          resources:
+            requests:
+              storage: 50Gi
+
+    podMonitorSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+
+kubeStateMetrics:
+  enabled: false
+
+alertmanager:
+  enabled: false
+
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: linuxtips
+
+  initChownData:
+    enabled: false
+
+  persistence:
+    enabled: true
+    storageClassName: "efs-grafana"
+    accessModes:
+      - ReadWriteMany
+    size: 10Gi
+
+  nodeSelector:
+    karpenter.sh/nodepool: "prometheus"    
+
+prometheusOperator:
+  enabled: true
+  namespaces: ''
+  denyNamespaces: ''
+  prometheusInstanceNamespaces: ''
+  alertmanagerInstanceNamespaces: ''
+  thanosRulerInstanceNamespaces: ''
+
+  nodeSelector:
+    karpenter.sh/nodepool: "prometheus" 
+
+prometheus-node-exporter:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: "eks.amazonaws.com/compute-type"
+                operator: "NotIn"
+                values:
+                  - "fargate"

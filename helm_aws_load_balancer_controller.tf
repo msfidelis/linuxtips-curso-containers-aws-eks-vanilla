@@ -41,6 +41,6 @@ resource "helm_release" "alb_ingress_controller" {
     aws_eks_cluster.main,
     helm_release.karpenter,
     aws_eks_fargate_profile.karpenter,
-    aws_eks_fargate_profile.kube_system,
+    aws_eks_fargate_profile.karpenter,
   ]
 }
