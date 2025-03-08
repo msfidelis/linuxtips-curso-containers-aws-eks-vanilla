@@ -2,6 +2,66 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: chip
+  labels:
+    istio-injection: enabled
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: chip
+  namespace: chip
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "chip.msfidelis.com.br" 
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: chip
+  namespace: chip
+spec:
+  hosts:
+  - "chip.chip.svc.cluster.local"
+  - "chip.msfidelis.com.br"
+  gateways:
+  - chip
+  http:
+  - route:
+    - destination:
+        host: chip
+        port:
+          number: 8080 
+    retries:
+      attempts: 3
+      perTryTimeout: 500ms
+      retryOn: 5xx
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: chip
+  namespace: chip
+spec:
+  host: chip.chip.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 2
+      http:
+        http1MaxPendingRequests: 10
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutive5xxErrors: 100
+      interval: 300ms
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -11,7 +71,7 @@ metadata:
   name: chip
   namespace: chip
 spec:
-  replicas: 100
+  replicas: 3
   selector:
     matchLabels:
       app: chip
@@ -22,10 +82,6 @@ spec:
         name: chip
         version: v1
     spec:
-
-      nodeSelector:
-        karpenter.sh/nodepool: soft
-
       topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: "topology.kubernetes.io/zone"
@@ -108,3 +164,20 @@ spec:
   selector:
     app: chip
   type: ClusterIP
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: google.com.br
+  namespace: chip
+spec:
+  hosts:
+  - google.com.br
+  - www.google.com.br
+  - google.com
+  location: MESH_EXTERNAL
+  ports:
+  - number: 443
+    name: https
+    protocol: TLS
+  resolution: DNS

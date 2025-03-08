@@ -18,32 +18,72 @@ resource "helm_release" "prometheus" {
   ]
 }
 
-
-resource "kubectl_manifest" "grafana_host" {
+resource "kubectl_manifest" "grafana_gateway" {
   yaml_body = <<YAML
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
 metadata:
-  name: grafana-ingress
+  name: grafana
   namespace: prometheus
-  annotations:
 spec:
-  ingressClassName: nginx
-  rules:
-    - host: ${var.grafana_host}
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: prometheus-grafana
-                port:
-                  number: 80
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "${var.grafana_host}" 
 YAML
-  depends_on = [
-    helm_release.prometheus,
-    helm_release.nginx_controller
-  ]
-
 }
+
+resource "kubectl_manifest" "grafana_virtual_service" {
+  yaml_body = <<YAML
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: grafana
+  namespace: prometheus
+spec:
+  hosts:
+  - "${var.grafana_host}"
+  gateways:
+  - grafana
+  http:
+  - route:
+    - destination:
+        host: prometheus-grafana
+        port:
+          number: 80 
+YAML
+}
+
+# resource "kubectl_manifest" "grafana_host" {
+#   yaml_body = <<YAML
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: grafana-ingress
+#   namespace: prometheus
+#   annotations:
+# spec:
+#   ingressClassName: nginx
+#   rules:
+#     - host: ${var.grafana_host}
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: prometheus-grafana
+#                 port:
+#                   number: 80
+# YAML
+#   depends_on = [
+#     helm_release.prometheus,
+#     helm_release.nginx_controller
+#   ]
+
+# }

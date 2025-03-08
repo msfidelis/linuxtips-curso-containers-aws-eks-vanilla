@@ -5,26 +5,43 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: health-api
---- 
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+  labels:
+    istio-injection: enabled
+  name: nutrition
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
 metadata:
   name: health-api
-  namespace: health-api
+  namespace: nutrition
 spec:
-  ingressClassName: nginx
-  rules:
-    - host: health.msfidelis.com.br
-      http:
-        paths:
-          - pathType: Prefix
-            backend:
-              service:
-                name: health-api
-                port:
-                  number: 8080
-            path: /
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "health.msfidelis.com.br" 
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: health-api
+  namespace: nutrition
+spec:
+  hosts:
+  - "health-api.nutrition.svc.cluster.local"
+  - "health.msfidelis.com.br"
+  gateways:
+  - health-api
+  http:
+  - route:
+    - destination:
+        host: health-api
+        port:
+          number: 8080 
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,7 +49,7 @@ metadata:
   labels:
     app: health-api
   name: health-api
-  namespace: health-api
+  namespace: nutrition
 spec:
   replicas: 2
   selector:
@@ -55,15 +72,15 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: ZIPKIN_COLLECTOR_ENDPOINT
-          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+          value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans          
         - name: BMR_SERVICE_ENDPOINT
-          value: "bmr-grpc.bmr.svc.cluster.local:30000"
+          value: "bmr-grpc.nutrition.svc.cluster.local:30000"
         - name: IMC_SERVICE_ENDPOINT
-          value: "imc-grpc.imc.svc.cluster.local:30000"
+          value: "imc-grpc.nutrition.svc.cluster.local:30000"
         - name: RECOMMENDATIONS_SERVICE_ENDPOINT
-          value: "recommendations-grpc.recommendations.svc.cluster.local:30000"
+          value: "recommendations-grpc.nutrition.svc.cluster.local:30000"
         - name: NATS_URI
-          value: "nats://nats.nats.svc.cluster.local:4222"                              
+          value: "nats://nats.nutrition.svc.cluster.local:4222"                              
         ports:
         - containerPort: 8080
           name: http   
@@ -84,7 +101,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: health-api
-  namespace: health-api
+  namespace: nutrition
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"    
@@ -103,10 +120,21 @@ spec:
 ###################################
 ###   Recommendations Service   ###
 ###################################
-apiVersion: v1
-kind: Namespace
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
 metadata:
-  name: recommendations
+  name: recommendations-grpc
+  namespace: nutrition
+spec:
+  hosts:
+  - "recommendations-grpc.nutrition.svc.cluster.local"
+  http:
+  - route:
+    - destination:
+        host: recommendations-grpc
+        port:
+          number: 30000 
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -114,7 +142,7 @@ metadata:
   labels:
     app: recommendations-grpc
   name: recommendations-grpc
-  namespace: recommendations
+  namespace: nutrition
 spec:
   replicas: 2
   selector:
@@ -138,13 +166,13 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: ZIPKIN_COLLECTOR_ENDPOINT
-          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+          value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans          
         - name: PROTEINS_SERVICE_ENDPOINT
-          value: "proteins-grpc.proteins.svc.cluster.local:30000"  
+          value: "proteins-grpc.nutrition.svc.cluster.local:30000"  
         - name: WATER_SERVICE_ENDPOINT
-          value: "water-grpc.water.svc.cluster.local:30000"  
+          value: "water-grpc.nutrition.svc.cluster.local:30000"  
         - name: CALORIES_SERVICE_ENDPOINT
-          value: "calories-grpc.calories.svc.cluster.local:30000"  
+          value: "calories-grpc.nutrition.svc.cluster.local:30000"  
         ports:
         - containerPort: 30000
           name: http   
@@ -154,7 +182,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: recommendations-grpc
-  namespace: recommendations
+  namespace: nutrition
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "30000"    
@@ -173,10 +201,20 @@ spec:
 ###   BMR Service   ###
 #######################
 ---
-apiVersion: v1
-kind: Namespace
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
 metadata:
-  name: bmr
+  name: bmr-grpc
+  namespace: nutrition
+spec:
+  hosts:
+  - "bmr-grpc.nutrition.svc.cluster.local"
+  http:
+  - route:
+    - destination:
+        host: bmr-grpc
+        port:
+          number: 30000 
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -184,7 +222,7 @@ metadata:
   labels:
     app: bmr-grpc
   name: bmr-grpc
-  namespace: bmr
+  namespace: nutrition
 spec:
   replicas: 2
   selector:
@@ -207,7 +245,7 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: ZIPKIN_COLLECTOR_ENDPOINT
-          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+          value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans          
         ports:
         - containerPort: 30000
           name: http   
@@ -217,7 +255,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: bmr-grpc
-  namespace: bmr
+  namespace: nutrition
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "30000"    
@@ -236,10 +274,21 @@ spec:
 #######################
 ###   IMC Service   ###
 #######################
-apiVersion: v1
-kind: Namespace
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
 metadata:
-  name: imc
+  name: imc-grpc
+  namespace: nutrition
+spec:
+  hosts:
+  - "imc-grpc.nutrition.svc.cluster.local"
+  http:
+  - route:
+    - destination:
+        host: imc-grpc
+        port:
+          number: 30000 
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -247,7 +296,7 @@ metadata:
   labels:
     app: imc-grpc
   name: imc-grpc
-  namespace: imc
+  namespace: nutrition
 spec:
   replicas: 2
   selector:
@@ -270,7 +319,7 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: ZIPKIN_COLLECTOR_ENDPOINT
-          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+          value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans          
         ports:
         - containerPort: 30000
           name: http   
@@ -280,7 +329,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: imc-grpc
-  namespace: imc
+  namespace: nutrition
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "30000"    
@@ -299,10 +348,21 @@ spec:
 ############################
 ###   Calories Service   ###
 ############################
-apiVersion: v1
-kind: Namespace
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
 metadata:
-  name: calories
+  name: calories-grpc
+  namespace: nutrition
+spec:
+  hosts:
+  - "calories-grpc.nutrition.svc.cluster.local"
+  http:
+  - route:
+    - destination:
+        host: calories-grpc
+        port:
+          number: 30000 
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -310,7 +370,7 @@ metadata:
   labels:
     app: calories-grpc
   name: calories-grpc
-  namespace: calories
+  namespace: nutrition
 spec:
   replicas: 2
   selector:
@@ -333,7 +393,7 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: ZIPKIN_COLLECTOR_ENDPOINT
-          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans
+          value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans
         ports:
         - containerPort: 30000
           name: http   
@@ -343,7 +403,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: calories-grpc
-  namespace: calories
+  namespace: nutrition
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "30000"    
@@ -362,10 +422,21 @@ spec:
 ############################
 ###   Proteins Service   ###
 ############################
-apiVersion: v1
-kind: Namespace
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
 metadata:
-  name: proteins
+  name: proteins-grpc
+  namespace: nutrition
+spec:
+  hosts:
+  - "proteins-grpc.nutrition.svc.cluster.local"
+  http:
+  - route:
+    - destination:
+        host: proteins-grpc
+        port:
+          number: 30000 
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -373,7 +444,7 @@ metadata:
   labels:
     app: proteins-grpc
   name: proteins-grpc
-  namespace: proteins
+  namespace: nutrition
 spec:
   replicas: 2
   selector:
@@ -396,7 +467,7 @@ spec:
         - name: ENVIRONMENT
           value: "dev" 
         - name: ZIPKIN_COLLECTOR_ENDPOINT
-          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+          value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans          
         ports:
         - containerPort: 30000
           name: http   
@@ -406,7 +477,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: proteins-grpc
-  namespace: proteins
+  namespace: nutrition
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "30000"    
@@ -425,10 +496,21 @@ spec:
 #########################
 ###   Water Service   ###
 #########################
-apiVersion: v1
-kind: Namespace
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
 metadata:
-  name: water
+  name: water-grpc
+  namespace: nutrition
+spec:
+  hosts:
+  - "water-grpc.nutrition.svc.cluster.local"
+  http:
+  - route:
+    - destination:
+        host: water-grpc
+        port:
+          number: 30000 
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -436,7 +518,7 @@ metadata:
   labels:
     app: water-grpc
   name: water-grpc
-  namespace: water
+  namespace: nutrition
 spec:
   replicas: 2
   selector:
@@ -459,7 +541,7 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: ZIPKIN_COLLECTOR_ENDPOINT
-          value: http://jaeger-collector.jaeger.svc.cluster.local:9411/api/v2/spans          
+          value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans          
         ports:
         - containerPort: 30000
           name: http   
@@ -469,7 +551,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: water-grpc
-  namespace: water
+  namespace: nutrition
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "30000"    

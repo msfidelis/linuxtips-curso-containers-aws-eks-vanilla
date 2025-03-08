@@ -107,34 +107,46 @@ variable "route53_hosted_zone" {
   default = "Z102505525LUE9SZ7HWTY"
 }
 
-# Nginx
+// Istio
 
-variable "nginx_min_replicas" {
-  type    = string
-  default = "3"
+variable "istio_version" {
+  type        = string
+  description = "Versão do Istio"
+  default     = "1.25.0"
 }
 
-variable "nginx_max_replicas" {
-  type    = string
-  default = "60"
+variable "istio_min_replicas" {
+  type        = string
+  description = "value of min replicas"
+  default     = "3"
 }
 
-variable "nginx_requests_cpu" {
-  type    = string
-  default = "250m"
+
+
+variable "istio_cpu_threshold" {
+  type        = string
+  description = "value of cpu threshold"
+  default     = "60"
 }
 
-variable "nginx_requests_memory" {
-  type    = string
-  default = "512Mi"
+// Jaeger
+
+variable "jaeger_host" {
+  type        = string
+  description = "Host do Jaeger"
+  default     = "jaeger.msfidelis.com.br"
 }
 
-variable "nginx_limits_cpu" {
-  type    = string
-  default = "500m"
+// Kiali 
+
+variable "kiali_host" {
+  type        = string
+  description = "Host do Kiali"
+  default     = "kiali.msfidelis.com.br"
 }
 
-variable "nginx_limits_memory" {
-  type    = string
-  default = "1024Mi"
-}
+variable "kiali_version" {
+  type        = string
+  description = "value of kiali version"
+  default     = "2.5"
+} 
