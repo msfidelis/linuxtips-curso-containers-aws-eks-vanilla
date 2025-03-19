@@ -13,6 +13,11 @@ resource "helm_release" "metrics_server" {
     value = "true"
   }
 
+  set {
+    name  = "serviceMonitor.enabled"
+    value = "true"
+  }
+
   depends_on = [
     aws_eks_cluster.main,
     aws_eks_fargate_profile.karpenter

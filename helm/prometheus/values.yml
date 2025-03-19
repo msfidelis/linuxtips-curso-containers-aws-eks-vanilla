@@ -27,7 +27,7 @@ prometheus:
     scrapeConfigSelectorNilUsesHelmValues: false
 
 kubeStateMetrics:
-  enabled: false
+  enabled: true
 
 alertmanager:
   enabled: false
