@@ -32,6 +32,16 @@ resource "helm_release" "karpenter" {
     value = aws_sqs_queue.karpenter.name
   }
 
+  set {
+    name  = "controller.resources.requests.cpu"
+    value = "1000m"
+  }
+
+  set {
+    name  = "controller.resources.requests.memory"
+    value = "1Gi"
+  }  
+
   depends_on = [
     aws_eks_cluster.main,
     aws_eks_fargate_profile.karpenter

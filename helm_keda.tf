@@ -10,6 +10,7 @@ resource "helm_release" "keda" {
 
   depends_on = [
     aws_eks_cluster.main,
-    helm_release.karpenter
+    helm_release.karpenter,
+    helm_release.keda
   ]
 }
