@@ -1,0 +1,235 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chip
+  labels:
+    istio-injection: enabled
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: chip-warm-up-operation
+  namespace: chip
+spec:
+  metrics:
+  - name: k6-stack-warm-up
+    failureLimit: 0
+    provider:
+      job:
+        spec:
+          backoffLimit: 1
+          template:
+            metadata:
+              labels:
+                istio-injection: disabled
+                sidecar.istio.io/inject: "false"
+            spec:
+              containers:
+              - name: k6-stack-warm-up
+                image: fidelissauro/chip-test-green:latest
+              restartPolicy: Never
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: chip-success-rate
+  namespace: chip
+spec:
+  metrics:
+    - name: success-rate
+      interval: 2m
+      successCondition: result[0] >= 0.95
+      failureLimit: 0
+      provider:
+        prometheus:
+          address: http://prometheus-kube-prometheus-prometheus.prometheus.svc.cluster.local:9090
+          query: |
+            sum(irate(
+              istio_requests_total{destination_service=~"chip-green.chip.svc.cluster.local",response_code!~"5.*"}[1m]
+            )) /
+            sum(irate(
+              istio_requests_total{destination_service=~"chip-green.chip.svc.cluster.local"}[1m]
+            ))
+      count: 1
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  labels:
+    app: chip
+  name: chip
+  namespace: chip
+spec:
+  # Canary Release Manual
+  revisionHistoryLimit: 3
+  strategy:
+    blueGreen: 
+      activeService: chip
+      previewService: chip-green
+      autoPromotionEnabled: true
+      scaleDownDelaySeconds: 30
+      prePromotionAnalysis:
+        templates:
+        - templateName: chip-warm-up-operation
+        - templateName: chip-success-rate
+  replicas: 5
+  selector:
+    matchLabels:
+      app: chip
+  template:
+    metadata:       
+      labels:
+        app: chip
+        name: chip
+        version: v10
+    spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: chip
+          
+      nodeSelector:
+        karpenter.sh/nodepool: "general"
+
+      containers:
+      - name: chip
+        image: fidelissauro/chip:v1
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 250m
+            memory: 512Mi            
+        startupProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /readiness
+            port: 8080
+          periodSeconds: 10
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            httpHeaders:
+            - name: Custom-Header
+              value: Awesome
+            path: /liveness
+            port: 8080
+          periodSeconds: 10
+        env:
+        - name: CHAOS_MONKEY_ENABLED
+          value: "false"  
+        - name: CHAOS_MONKEY_MODE
+          value: "critical" 
+        - name: CHAOS_MONKEY_LATENCY
+          value: "true"            
+        - name: CHAOS_MONKEY_EXCEPTION
+          value: "true"   
+        - name: CHAOS_MONKEY_APP_KILLER
+          value: "true"   
+        - name: CHAOS_MONKEY_MEMORY
+          value: "true"    
+        - name: VERSION
+          value: "v10"                                              
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: chip
+  namespace: chip
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "chip.msfidelis.com.br" 
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: chip
+  namespace: chip
+spec:
+  hosts:
+  - "chip.chip.svc.cluster.local"
+  - "chip.msfidelis.com.br"
+  gateways:
+  - chip
+  http:
+  - route:
+    - destination:
+        host: chip
+        port:
+          number: 8080 
+    retries:
+      attempts: 1
+      perTryTimeout: 10500ms
+      retryOn: connect-failure,refused-stream
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chip
+  namespace: chip 
+  labels:
+    app.kubernetes.io/name: chip
+    app.kubernetes.io/instance: chip 
+spec:
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+  selector:
+    app: chip
+  type: ClusterIP
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: chip-green
+  namespace: chip
+spec:
+  hosts:
+  - "chip-green.chip.svc.cluster.local"
+  - "chip-green.msfidelis.com.br"
+  gateways:
+  - chip
+  http:
+  - route:
+    - destination:
+        host: chip-green
+        port:
+          number: 8080 
+    retries:
+      attempts: 3
+      perTryTimeout: 10500ms
+      retryOn: 5xx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chip-green
+  namespace: chip 
+  labels:
+    app.kubernetes.io/name: chip
+    app.kubernetes.io/instance: chip 
+spec:
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+  selector:
+    app: chip
+  type: ClusterIP
+---
