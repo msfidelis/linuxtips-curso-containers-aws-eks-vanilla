@@ -1,0 +1,24 @@
+{{- if .Values.app.prometheus.serviceMonitor.enabled}}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.app.name }}-monitor
+  namespace: {{ .Values.app.namespace }}
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+
+  endpoints:
+    - port: {{ .Values.app.prometheus.serviceMonitor.port }}
+      path: {{ .Values.app.prometheus.serviceMonitor.path }}
+      interval: {{ .Values.app.prometheus.serviceMonitor.interval }}
+      scrapeTimeout: "{{ .Values.app.prometheus.serviceMonitor.scrapeTimeout }}"
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.app.namespace }}
+
+{{- end}}

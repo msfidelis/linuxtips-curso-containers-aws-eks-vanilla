@@ -1,0 +1,23 @@
+{{- if .Values.app.istio.virtualService.enabled}}
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.namespace }}
+spec:
+  gateways:
+  - {{ .Values.app.name }}
+  hosts:
+  - {{ .Values.app.name }}.{{ .Values.app.namespace }}.svc.cluster.local
+  - {{ .Values.app.istio.host }}
+  http:
+  - retries:
+      attempts: {{ .Values.app.istio.virtualService.http.retries.attempts }}
+      perTryTimeout: {{ .Values.app.istio.virtualService.http.retries.perTryTimeout }}
+      retryOn: {{ .Values.app.istio.virtualService.http.retries.retryOn }}
+    route:
+    - destination:
+        host: {{ .Values.app.name }}
+        port:
+          number: {{ .Values.app.istio.virtualService.http.port }}
+{{- end}}

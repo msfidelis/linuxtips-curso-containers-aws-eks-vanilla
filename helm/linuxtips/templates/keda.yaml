@@ -1,0 +1,67 @@
+{{- if .Values.app.keda.enabled}}
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.namespace }}
+spec:
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds:  {{ .Values.app.keda.hpaConfig.behavior.scaleDown.stabilizationWindowSeconds}}
+        scaleUp:
+          stabilizationWindowSeconds: {{ .Values.app.keda.hpaConfig.behavior.scaleUp.stabilizationWindowSeconds}}
+  cooldownPeriod: {{ .Values.app.keda.hpaConfig.cooldownPeriod }}
+  pollingInterval: {{ .Values.app.keda.hpaConfig.pollingInterval }}
+  maxReplicaCount:  {{ .Values.app.capacity.autoscaling.max }}
+  minReplicaCount: {{ .Values.app.capacity.autoscaling.min }}
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: {{ .Values.app.name }}
+  triggers:
+{{- range .Values.app.keda.prometheus}}
+  - type: prometheus
+    metadata:
+      serverAddress: {{ .serverAddress }}
+      metricName: {{ .metricName }}
+      query: {{ .query }}
+      threshold: {{ .threshold | quote }}
+{{- end}}
+
+{{- range .Values.app.keda.cron }}
+  - type: cron
+    metadata:
+      timezone: {{ .timezone }}
+      start: {{ .start }}
+      end: {{ .end }}
+      desiredReplicas: "{{ .desiredReplicas }}"
+{{- end}}
+
+{{- range .Values.app.keda.memory }}
+  - type: memory
+    metricType: {{ .metricType }}
+    metadata:
+      value: {{ .threshold | quote }}
+{{- end}}
+
+{{- range .Values.app.keda.cpu }}
+  - type: cpu
+    metricType: {{ .metricType }}
+    metadata:
+      value: {{ .threshold | quote }}
+{{- end}}
+
+{{- range .Values.app.keda.sqs }}
+  - type: aws-sqs-queue
+    authenticationRef:
+      name: {{ $.Values.app.name }}
+    metadata:
+      queueURL: {{ .queueURL }}
+      queueLength: {{ .queueLength | quote }}
+      region: {{ .region }}
+{{- end}}
+
+{{- end}}

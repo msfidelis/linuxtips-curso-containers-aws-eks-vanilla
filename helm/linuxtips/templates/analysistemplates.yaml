@@ -1,0 +1,9 @@
+{{- range .Values.app.rollout.analysisTemplates }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.app.namespace }}
+spec:
+  {{ .spec | toYaml | nindent 2 }}
+{{- end}}

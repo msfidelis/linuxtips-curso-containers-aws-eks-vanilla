@@ -77,7 +77,7 @@ spec:
 YAML
 
   depends_on = [
-    helm_release.jaeger,
+    helm_release.argo_rollouts,
     helm_release.istio_ingress
   ]
 
