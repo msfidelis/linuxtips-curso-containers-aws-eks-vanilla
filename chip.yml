@@ -225,6 +225,40 @@ spec:
 #       end: 35 20 * * *         
 #       desiredReplicas: "20"
 ---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: nginx-istio-tps
+  namespace: nginx
+spec:
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: nginx
+  minReplicaCount: 10
+  maxReplicaCount: 10
+  pollingInterval: 
+  cooldownPeriod:  
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 30
+        scaleUp:
+          stabilizationWindowSeconds: 30          
+  triggers:
+  - type: prometheus
+    metadata:
+      serverAddress: <http://prometheus-kube-prometheus-prometheus.prometheus.svc.cluster.local:9090>
+      metricName: istio_requests_total 
+      threshold: "50" 
+      query: |
+        sum(irate(
+        istio_requests_total{destination_service=~"nginx.nginx.svc.cluster.local",response_code!~"5.*"}[5m]
+        )) /
+        sum(irate(
+        istio_requests_total{destination_service=~"nginx.nginx.svc.cluster.local"}[5m]
+        ))
 ---
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
