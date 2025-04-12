@@ -33,7 +33,7 @@ resource "helm_release" "kiali-server" {
     value = "http://jaeger-query.tracing.svc.cluster.local:16686"
   }
 
-    set {
+  set {
     name  = "external_services.tracing.external_url"
     value = format("http://%s", var.jaeger_host)
   }
@@ -108,7 +108,7 @@ resource "helm_release" "kiali-server" {
     name  = "external_services.grafana.dashboards[2].variables.namespace"
     value = "var-namespace"
   }
-  
+
   set {
     name  = "external_services.grafana.dashboards[2].variables.workload"
     value = "var-workload"

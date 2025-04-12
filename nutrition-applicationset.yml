@@ -1,0 +1,908 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: nutrition
+  namespace: argocd
+spec:
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nutrition-proteins
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc                                         
+  template:
+    metadata:
+      name: nutrition-proteins
+    spec:
+      project: nutrition
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: proteins-grpc
+              namespace: nutrition
+              image:
+                repository: fidelissauro/proteins-grpc-service
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: grpc
+                  port: 30000
+                  targetPort: 30000
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 2
+                  max: 10
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENVIRONMENT
+                  value: "dev"
+                - name: ZIPKIN_COLLECTOR_ENDPOINT
+                  value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans  
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 50
+                      - pause: {duration: 30s}
+                      - setWeight: 100
+
+              istio:
+                host: proteins-grpc.chip.msfidelis.com.br
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: true
+                    port: 30000
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: 5xx
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: false
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nutrition-water
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc                                         
+  template:
+    metadata:
+      name: nutrition-water
+    spec:
+      project: nutrition
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: water-grpc
+              namespace: nutrition
+              image:
+                repository: fidelissauro/water-grpc-service
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: grpc
+                  port: 30000
+                  targetPort: 30000
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 2
+                  max: 10
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENVIRONMENT
+                  value: "dev"
+                - name: ZIPKIN_COLLECTOR_ENDPOINT
+                  value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans  
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 50
+                      - pause: {duration: 30s}
+                      - setWeight: 100
+
+              istio:
+                host: water-grpc.chip.msfidelis.com.br
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: true
+                    port: 30000
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: 5xx
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: false
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nutrition-calories
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc                                         
+  template:
+    metadata:
+      name: nutrition-calories
+    spec:
+      project: nutrition
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: calories-grpc
+              namespace: nutrition
+              image:
+                repository: fidelissauro/calories-grpc-service
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: grpc
+                  port: 30000
+                  targetPort: 30000
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 2
+                  max: 10
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENVIRONMENT
+                  value: "dev"
+                - name: ZIPKIN_COLLECTOR_ENDPOINT
+                  value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans  
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 50
+                      - pause: {duration: 30s}
+                      - setWeight: 100
+
+              istio:
+                host: calories-grpc.chip.msfidelis.com.br
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: true
+                    port: 30000
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: 5xx
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: false
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nutrition-imc
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc                                         
+  template:
+    metadata:
+      name: nutrition-imc
+    spec:
+      project: nutrition
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: imc-grpc
+              namespace: nutrition
+              image:
+                repository: fidelissauro/imc-grpc-service
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: grpc
+                  port: 30000
+                  targetPort: 30000
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 2
+                  max: 10
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENVIRONMENT
+                  value: "dev"
+                - name: ZIPKIN_COLLECTOR_ENDPOINT
+                  value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans  
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 50
+                      - pause: {duration: 30s}
+                      - setWeight: 100
+
+              istio:
+                host: imc-grpc.chip.msfidelis.com.br
+                gateway:
+                  enabled: false
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: true
+                    port: 30000
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: 5xx
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: false
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nutrition-bmr
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc                                         
+  template:
+    metadata:
+      name: nutrition-bmr
+    spec:
+      project: nutrition
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: bmr-grpc
+              namespace: nutrition
+              image:
+                repository: fidelissauro/bmr-grpc-service
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: grpc
+                  port: 30000
+                  targetPort: 30000
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 2
+                  max: 10
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENVIRONMENT
+                  value: "dev"
+                - name: ZIPKIN_COLLECTOR_ENDPOINT
+                  value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans  
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 50
+                      - pause: {duration: 30s}
+                      - setWeight: 100
+
+              istio:
+                host: bmr-grpc.chip.msfidelis.com.br
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: false
+                    port: 30000
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: connect-failure,refused-stream,unavailable,cancelled
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: false
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nutrition-recommendations
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc                                         
+  template:
+    metadata:
+      name: nutrition-recommendations
+    spec:
+      project: nutrition
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: recommendations-grpc
+              namespace: nutrition
+              image:
+                repository: fidelissauro/recommendations-grpc-service
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: grpc
+                  port: 30000
+                  targetPort: 30000
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 2
+                  max: 10
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENVIRONMENT
+                  value: "dev"
+                - name: ZIPKIN_COLLECTOR_ENDPOINT
+                  value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans  
+                - name: PROTEINS_SERVICE_ENDPOINT
+                  value: "proteins-grpc.nutrition.svc.cluster.local:30000"  
+                - name: WATER_SERVICE_ENDPOINT
+                  value: "water-grpc.nutrition.svc.cluster.local:30000"  
+                - name: CALORIES_SERVICE_ENDPOINT
+                  value: "calories-grpc.nutrition.svc.cluster.local:30000"  
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 50
+                      - pause: {duration: 30s}
+                      - setWeight: 100
+
+              istio:
+                host: recommendations-grpc.chip.msfidelis.com.br
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: true
+                    port: 30000
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: 5xx
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: false
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nutrition-health-api
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc                                         
+  template:
+    metadata:
+      name: nutrition-health-api
+    spec:
+      project: nutrition
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: health-api
+              namespace: nutrition
+              image:
+                repository: fidelissauro/health-api
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: http
+                  port: 8080
+                  targetPort: 8080
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 2
+                  max: 10
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENVIRONMENT
+                  value: "dev"
+                - name: ZIPKIN_COLLECTOR_ENDPOINT
+                  value: http://jaeger-collector.tracing.svc.cluster.local:9411/api/v2/spans  
+                - name: BMR_SERVICE_ENDPOINT
+                  value: "bmr-grpc.nutrition.svc.cluster.local:30000"
+                - name: IMC_SERVICE_ENDPOINT
+                  value: "imc-grpc.nutrition.svc.cluster.local:30000"
+                - name: RECOMMENDATIONS_SERVICE_ENDPOINT
+                  value: "recommendations-grpc.nutrition.svc.cluster.local:30000"
+                # Configs do Health-data-offload
+                # - name: MESSAGE_TYPE
+                #   value: "sqs"
+                # - name: SQS_QUEUE_URL
+                #   value: "URL DA QUEUE"
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 50
+                      - pause: {duration: 30s}
+                      - setWeight: 100
+
+              istio:
+                host: health.msfidelis.com.br
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: true
+                    port: 8080
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: 5xx
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthcheck
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthcheck
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthcheck
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: false
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}

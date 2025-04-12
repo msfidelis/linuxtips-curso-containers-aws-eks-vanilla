@@ -40,7 +40,7 @@ resource "helm_release" "karpenter" {
   set {
     name  = "controller.resources.requests.memory"
     value = "1Gi"
-  }  
+  }
 
   depends_on = [
     aws_eks_cluster.main,

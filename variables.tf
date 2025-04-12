@@ -149,7 +149,7 @@ variable "kiali_version" {
   type        = string
   description = "value of kiali version"
   default     = "2.5"
-} 
+}
 
 // Keda
 
@@ -162,13 +162,21 @@ variable "keda_version" {
 // Argo Rollouts
 
 variable "argo_rollouts_version" {
-  type    = string
-  default = "2.34.1"
+  type        = string
+  default     = "2.34.1"
   description = "value of argo rollouts version"
 }
 
 variable "argo_rollouts_host" {
-  type = string
-  default = "argo-rollouts.msfidelis.com.br"
+  type        = string
+  default     = "argo-rollouts.msfidelis.com.br"
   description = "Host do Argo Rollouts"
+}
+
+// ArgoCD
+
+variable "argocd_host" {
+  type        = string
+  default     = "argocd.msfidelis.com.br"
+  description = "Host do ArgoCD"
 }

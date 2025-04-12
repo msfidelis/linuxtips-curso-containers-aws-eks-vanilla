@@ -28,8 +28,8 @@ EOF
 }
 
 resource "aws_dynamodb_table" "health" {
-  name             = "health-data"
-  hash_key         = "id"
+  name           = "health-data"
+  hash_key       = "id"
   read_capacity  = 20
   write_capacity = 20
 

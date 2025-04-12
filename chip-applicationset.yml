@@ -1,0 +1,164 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: chip
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+        - cluster: https://kubernetes.default.svc
+  template:
+    metadata:
+      name: chip
+    spec:
+      project: "default"
+      source:
+        repoURL: 'http://chartmuseum.chartmuseum.svc.cluster.local:8080'
+        chart: linuxtips
+        targetRevision: 0.1.0
+        helm:
+          releaseName: chip
+          valuesObject:
+            app:
+              name: chip
+              namespace: chip
+              image:
+                repository: fidelissauro/chip
+                tag: latest
+                pullPolicy: IfNotPresent
+              createNamespace: true
+              iam: ""
+
+              type: ClusterIP
+              ports:
+                - name: http
+                  port: 8080
+                  targetPort: 8080
+
+              capacity:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                autoscaling:
+                  min: 10
+                  max: 30
+
+                nodepool:
+                  enabled: true
+                  name: general
+
+              envs:
+                - name: ENV
+                  value: "dev"
+                - name: FOO
+                  value: "basr"
+                - name: VERSION
+                  value: v2
+
+              rollout:
+                revisionHistoryLimit: 3
+                version: v1
+                strategy:
+                  canary:
+                    enabled: true
+                    steps:
+                      - setWeight: 20
+                      - pause: {duration: 30s}
+                      - analysis:
+                          templates:
+                            - templateName: chip-success                      
+                      - setWeight: 40
+                      - pause: {duration: 30s}
+                      - analysis:
+                          templates:
+                            - templateName: chip-success
+                      - setWeight: 60
+                      - pause: {duration: 30s}
+                      - analysis:
+                          templates:
+                            - templateName: chip-success
+                      - setWeight: 80
+                      - pause: {duration: 30s}
+                      - analysis:
+                          templates:
+                            - templateName: chip-success
+                      - setWeight: 100
+                analysisTemplates:
+                  - name: chip-success
+                    spec:
+                      metrics:
+                        - name: success-rate
+                          interval: 2m
+                          successCondition: result[0] >= 0.95
+                          failureLimit: 0
+                          provider:
+                            prometheus:
+                              address: http://prometheus-kube-prometheus-prometheus.prometheus.svc.cluster.local:9090
+                              query: |
+                                sum(irate(
+                                  istio_requests_total{destination_service=~"chip.chip.svc.cluster.local",response_code!~"5.*"}[1m]
+                                )) /
+                                sum(irate(
+                                  istio_requests_total{destination_service=~"chip.chip.svc.cluster.local"}[1m]
+                                ))
+                          count: 1
+
+              istio:
+                host: chip.msfidelis.com.br
+                virtualService:
+                  enabled: true
+                  http:
+                    enabled: true
+                    port: 8080
+                    retries:
+                      attempts: 1
+                      perTryTimeout: 2s
+                      retryOn: 5xx
+
+
+              probes:
+                startupProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthcheck
+                    port: 8080
+                readinessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthcheck
+                    port: 8080
+                livenessProbe:
+                  enabled: true
+                  failureThreshold: 10
+                  periodSeconds: 10
+                  httpGet:
+                    path: /healthcheck
+                    port: 8080
+
+              prometheus:
+                serviceMonitor:
+                  enabled: true
+                  interval: 30s
+                  scrapeTimeout: 10s
+                  port: http
+                  path: /metrics          
+
+              keda: 
+                enabled: false
+
+      destination:
+        server: '{{ cluster }}'
+        namespace: argocd
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated: {}
