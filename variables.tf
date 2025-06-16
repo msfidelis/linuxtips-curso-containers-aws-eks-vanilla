@@ -180,3 +180,8 @@ variable "argocd_host" {
   default     = "argocd.msfidelis.com.br"
   description = "Host do ArgoCD"
 }
+
+// Chaos Mesh
+variable "chaos_mesh_host" {
+  default = "chaos-mesh.msfidelis.com.br"
+}

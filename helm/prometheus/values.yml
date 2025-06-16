@@ -4,19 +4,20 @@ prometheus:
 
     retention: 15d
 
-    nodeSelector:
-      karpenter.sh/nodepool: "prometheus"
+    # nodeSelector:
+    #   karpenter.sh/nodepool: "prometheus"
 
     # Storage
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: "efs-prometheus"
-          accessModes:
-            - ReadWriteMany
-          resources:
-            requests:
-              storage: 50Gi
+    # storageSpec:
+    #   enabled: false
+    #   volumeClaimTemplate:
+    #     spec:
+    #       storageClassName: "efs-prometheus"
+    #       accessModes:
+    #         - ReadWriteMany
+    #       resources:
+    #         requests:
+    #           storage: 50Gi
 
     podMonitorSelector: {}
     podMonitorSelectorNilUsesHelmValues: false
@@ -41,14 +42,14 @@ grafana:
     enabled: false
 
   persistence:
-    enabled: true
+    enabled: false
     storageClassName: "efs-grafana"
     accessModes:
       - ReadWriteMany
     size: 10Gi
 
-  nodeSelector:
-    karpenter.sh/nodepool: "prometheus"    
+  # nodeSelector:
+  #   karpenter.sh/nodepool: "prometheus"    
 
 prometheusOperator:
   enabled: true
@@ -58,8 +59,8 @@ prometheusOperator:
   alertmanagerInstanceNamespaces: ''
   thanosRulerInstanceNamespaces: ''
 
-  nodeSelector:
-    karpenter.sh/nodepool: "prometheus" 
+  # nodeSelector:
+  #   karpenter.sh/nodepool: "prometheus" 
 
 prometheus-node-exporter:
   affinity:
