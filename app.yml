@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: semana-devops-python-helm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/FabioBartoli/semana_devops_python.git
+    targetRevision: main
+    path: manifests
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: semanadevops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
